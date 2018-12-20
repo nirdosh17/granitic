@@ -1,3 +1,5 @@
+// Copyright 2018 Granitic. All rights reserved.
+// Use of this source code is governed by an Apache 2.0 license that can be found in the LICENSE file at the root of this project.
 package binder
 
 import (
@@ -10,7 +12,6 @@ import (
 	"github.com/graniticio/granitic/config"
 	"github.com/graniticio/granitic/instance"
 	"github.com/graniticio/granitic/logging"
-	"github.com/graniticio/granitic/types"
 	"os"
 	"path"
 	"strings"
@@ -165,29 +166,30 @@ func (b *Binder) writeImports(w *bufio.Writer, configAccessor *config.ConfigAcce
 	packages, err := configAccessor.Array(packagesField)
 	b.checkErr(err)
 
-	seen := types.NewEmptyOrderedStringSet()
+	allPackages, err := parsePackages(packages)
+	b.checkErr(err)
 
 	w.WriteString("import (\n")
 
 	iocImp := b.tabIndent(b.quoteString(iocImport), 1)
 	w.WriteString(iocImp + newline)
 
-	for _, packageName := range packages {
+	for _, pi := range allPackages.Info {
 
-		p := packageName.(string)
+		var line string
 
-		if seen.Contains(p) {
-			continue
+		if pi.Alias == "" {
+			line = fmt.Sprintf("\"%s\"\n", pi.Name)
 		} else {
-			seen.Add(p)
+			line = fmt.Sprintf("%s \"%s\"\n", pi.Alias, pi.Name)
 		}
 
-		i := b.quoteString(p)
-		i = b.tabIndent(i, 1)
-		w.WriteString(i + newline)
+		line = b.tabIndent(line, 1)
+		w.WriteString(line)
 	}
 
 	w.WriteString(")\n\n")
+
 }
 
 func (b *Binder) writeEntryFunctionOpen(w *bufio.Writer, t int) {
